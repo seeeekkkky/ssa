@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DNA Free Play Lab</title>
+
+<style>
+/* -------------------------------------------------------
+   GLOBAL
+------------------------------------------------------- */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  background: #eef7ff;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* -------------------------------------------------------
+   TOP BAR
+------------------------------------------------------- */
+#top-bar {
+  background: white;
+  padding: 10px 20px;
+  border-bottom: 3px solid #bcd7ff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#top-bar h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+#top-bar button {
+  padding: 10px 16px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  background: #4c97ff;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+#current-dna-text {
+  font-weight: 700;
+  color: #ff4c4c;
+}
+
+/* -------------------------------------------------------
+   MAIN LAYOUT
+------------------------------------------------------- */
+#main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* -------------------------------------------------------
+   PALETTE
+------------------------------------------------------- */
+#palette {
+  width: 26%;
+  background: #d8ecff;
+  border-right: 3px solid #a3d4ff;
+  padding: 20px;
+  overflow-y: auto;
+}
+.category {
+  margin-top: 20px;
+  font-weight: 700;
+  color: #2d5fa8;
+}
+.block {
+  padding: 14px 18px;
+  margin: 10px 0;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: grab;
+  background: #4c97ff;
+  color: white;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+}
+
+/* -------------------------------------------------------
+   PROGRAM AREA
+------------------------------------------------------- */
+#program {
+  width: 34%;
+  background: #f4faff;
+  border-right: 3px solid #a3d4ff;
+  padding: 20px;
+  overflow-y: auto;
+}
+#program h2 {
+  margin-top: 0;
+}
+#program-area {
+  min-height: 350px;
+  border: 3px dashed #7aa7ff;
+  border-radius: 12px;
+  padding: 15px;
+  background: #e8f4ff;
+}
+#trash {
+  margin-top: 20px;
+  padding: 20px;
+  background: #ffb3b3;
+  border: 2px solid #ff8080;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+#trash.dragover {
+  background: #ff6666;
+}
+
+/* -------------------------------------------------------
+   DNA VIEW
+------------------------------------------------------- */
+#dna-view {
+  width: 40%;
+  background: white;
+  padding: 20px;
+  overflow-y: auto;
+}
+#dna-view h2 {
+  margin-top: 0;
+}
+#dna-canvas {
+  width: 100%;
+  height: 700px;
+  position: relative;
+}
+
+/* DNA ladder rows */
+.dna-row {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+.base {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: black;
+}
+.A { background: #ff6b6b; }   /* Red */
+.T { background: #ffd93b; }   /* Yellow */
+.C { background: #6bcfff; }   /* Blue */
+.G { background: #6bcf6b; }   /* Green */
+
+.link {
+  width: 40px;
+  height: 6px;
+  background: #ccc;
+  border-radius: 3px;
+}
+
+/* -------------------------------------------------------
+   RESPONSIVE (TABLET)
+------------------------------------------------------- */
+@media (max-width: 1100px) {
+  #main {
+    flex-direction: column;
+  }
+  #palette, #program, #dna-view {
+    width: 100%;
+    height: auto;
+  }
+  .block {
+    font-size: 20px;
+    padding: 18px;
+  }
+  #dna-canvas {
+    height: 500px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- -------------------------------------------------------
+     TOP BAR
+------------------------------------------------------- -->
+<div id="top-bar">
+  <h1>DNA Free Play Lab</h1>
+  <div>
+    <button id="run">Run blocks</button>
+    <button id="clear">Clear program</button>
+    <button id="reset">Reset DNA</button>
+    <span style="margin-left:20px;">Current DNA: <span id="current-dna-text"></span></span>
+  </div>
+</div>
+
+<!-- -------------------------------------------------------
+     MAIN LAYOUT
+------------------------------------------------------- -->
+<div id="main">
+
+  <!-- PALETTE -->
+  <div id="palette">
+    <div class="category">Basic DNA</div>
+    <div class="block" data-action="mutate">🔄 Change 1 letter</div>
+    <div class="block" data-action="add">➕ Add random base</div>
+    <div class="block" data-action="mix">🎲 Mix DNA</div>
+    <div class="block" data-action="reset">🧽 Reset DNA</div>
+
+    <div class="category">Base pairs</div>
+    <div class="block" data-action="swapAT">🔁 Swap A ↔ T</div>
+    <div class="block" data-action="swapCG">🔁 Swap C ↔ G</div>
+
+    <div class="category">Positions</div>
+    <div class="block" data-action="insert">📍 Insert base at position</div>
+    <div class="block" data-action="delete">🗑 Delete base at position</div>
+
+    <div class="category">Segments</div>
+    <div class="block" data-action="cut">✂ Cut segment</div>
+    <div class="block" data-action="reverse">🔄 Reverse segment</div>
+
+    <div class="category">Random & advanced</div>
+    <div class="block" data-action="mutateMany">🎲 Random mutate many</div>
+  </div>
+
+  <!-- PROGRAM -->
+  <div id="program">
+    <h2>Program</h2>
+    <div id="program-area"></div>
+    <div id="trash">🗑 Drag here to delete</div>
+  </div>
+
+  <!-- DNA VIEW -->
+  <div id="dna-view">
+    <h2>DNA Strand</h2>
+    <div id="dna-canvas"></div>
+  </div>
+
+</div>
+
+<script>
+/* -------------------------------------------------------
+   DNA ENGINE
+------------------------------------------------------- */
+let dna = "ATGCCGTAGCTA";
+const BASES = ["A","T","C","G"];
+
+function randomBase() {
+  return BASES[Math.floor(Math.random()*BASES.length)];
+}
+
+function complement(b) {
+  return {A:"T",T:"A",C:"G",G:"C"}[b] || "N";
+}
+
+function mutate() {
+  if (!dna.length) return;
+  let i = Math.floor(Math.random()*dna.length);
+  let current = dna[i];
+  let options = BASES.filter(b => b !== current);
+  dna = dna.slice(0,i) + options[Math.floor(Math.random()*options.length)] + dna.slice(i+1);
+}
+
+function addBase() {
+  dna += randomBase();
+}
+
+function mixDNA() {
+  dna = dna.split("").sort(()=>Math.random()-0.5).join("");
+}
+
+function resetDNA() {
+  dna = "ATGCCGTAGCTA";
+}
+
+function swapAT() {
+  dna = dna.replace(/A/g,"#").replace(/T/g,"A").replace(/#/g,"T");
+}
+
+function swapCG() {
+  dna = dna.replace(/C/g,"#").replace(/G/g,"C").replace(/#/g,"G");
+}
+
+function insertAtDefault() {
+  // insert random base at position 2 (kid friendly, no inputs yet)
+  let pos = 2;
+  if (pos < 0) pos = 0;
+  if (pos > dna.length) pos = dna.length;
+  dna = dna.slice(0,pos) + randomBase() + dna.slice(pos);
+}
+
+function deleteAtDefault() {
+  // delete base at position 3 if exists
+  let pos = 3;
+  if (pos < 0 || pos >= dna.length) return;
+  dna = dna.slice(0,pos) + dna.slice(pos+1);
+}
+
+function cutSegmentDefault() {
+  // remove middle slice (4..8)
+  let start = 4, end = 8;
+  if (start < 0) start = 0;
+  if (end > dna.length) end = dna.length;
+  if (start >= end) return;
+  dna = dna.slice(0,start) + dna.slice(end);
+}
+
+function reverseSegmentAll() {
+  dna = dna.split("").reverse().join("");
+}
+
+function mutateMany() {
+  for (let i=0;i<5;i++) mutate();
+}
+
+/* -------------------------------------------------------
+   DNA RENDERER (colorful ladder with helix wave)
+------------------------------------------------------- */
+function renderDNA() {
+  const canvas = document.getElementById("dna-canvas");
+  canvas.innerHTML = "";
+  document.getElementById("current-dna-text").textContent = dna;
+
+  const arr = dna.split("");
+  const rows = arr.length;
+  for (let i=0;i<rows;i++) {
+    const row = document.createElement("div");
+    row.className = "dna-row";
+    row.style.top = (i*22) + "px";
+
+    const wave = Math.sin(i*0.4) * 40;
+    row.style.transform = `translateX(calc(-50% + ${wave}px))`;
+
+    const leftBase = document.createElement("div");
+    leftBase.className = "base " + arr[i];
+    leftBase.textContent = arr[i];
+
+    const link = document.createElement("div");
+    link.className = "link";
+
+    const rightBase = document.createElement("div");
+    rightBase.className = "base " + complement(arr[i]);
+    rightBase.textContent = complement(arr[i]);
+
+    row.appendChild(leftBase);
+    row.appendChild(link);
+    row.appendChild(rightBase);
+    canvas.appendChild(row);
+  }
+}
+
+renderDNA();
+
+/* -------------------------------------------------------
+   BLOCK ENGINE (DRAG + DROP with ghost, mouse + touch)
+------------------------------------------------------- */
+const programArea = document.getElementById("program-area");
+const trash = document.getElementById("trash");
+const runBtn = document.getElementById("run");
+const clearBtn = document.getElementById("clear");
+const resetBtn = document.getElementById("reset");
+
+let dragData = null;
+let ghost = null;
+
+function startDragBlock(block, clientX, clientY) {
+  dragData = {
+    action: block.dataset.action,
+    className: block.className,
+    text: block.textContent.trim(),
+    source: block
+  };
+
+  ghost = block.cloneNode(true);
+  ghost.style.position = "fixed";
+  ghost.style.pointerEvents = "none";
+  ghost.style.opacity = "0.7";
+  ghost.style.zIndex = "9999";
+  ghost.style.left = clientX + "px";
+  ghost.style.top = clientY + "px";
+  document.body.appendChild(ghost);
+}
+
+function moveGhost(clientX, clientY) {
+  if (!ghost) return;
+  ghost.style.left = clientX + "px";
+  ghost.style.top = clientY + "px";
+}
+
+function endDragBlock(targetArea) {
+  if (ghost) {
+    ghost.remove();
+    ghost = null;
+  }
+  if (!dragData) return;
+
+  if (targetArea === "program") {
+    const newBlock = document.createElement("div");
+    newBlock.className = dragData.className;
+    newBlock.dataset.action = dragData.action;
+    newBlock.textContent = dragData.text;
+    makeBlockDraggable(newBlock);
+    programArea.appendChild(newBlock);
+  }
+
+  if (targetArea === "trash" && dragData.source.parentElement === programArea) {
+    dragData.source.remove();
+  }
+
+  dragData = null;
+}
+
+function makeBlockDraggable(block) {
+  block.addEventListener("mousedown", e => {
+    e.preventDefault();
+    startDragBlock(block, e.clientX, e.clientY);
+  });
+
+  block.addEventListener("touchstart", e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    startDragBlock(block, t.clientX, t.clientY);
+  });
+}
+
+document.querySelectorAll("#palette .block, #program-area .block").forEach(makeBlockDraggable);
+
+window.addEventListener("mousemove", e => {
+  if (!dragData) return;
+  moveGhost(e.clientX, e.clientY);
+});
+
+window.addEventListener("touchmove", e => {
+  if (!dragData) return;
+  const t = e.touches[0];
+  moveGhost(t.clientX, t.clientY);
+});
+
+window.addEventListener("mouseup", e => {
+  if (!dragData) return;
+  const progRect = programArea.getBoundingClientRect();
+  const trashRect = trash.getBoundingClientRect();
+  let target = null;
+
+  if (e.clientX >= progRect.left && e.clientX <= progRect.right &&
+      e.clientY >= progRect.top && e.clientY <= progRect.bottom) {
+    target = "program";
+  } else if (e.clientX >= trashRect.left && e.clientX <= trashRect.right &&
+             e.clientY >= trashRect.top && e.clientY <= trashRect.bottom) {
+    target = "trash";
+  }
+
+  endDragBlock(target);
+});
+
+window.addEventListener("touchend", e => {
+  if (!dragData) return;
+  const t = e.changedTouches[0];
+  const progRect = programArea.getBoundingClientRect();
+  const trashRect = trash.getBoundingClientRect();
+  let target = null;
+
+  if (t.clientX >= progRect.left && t.clientX <= progRect.right &&
+      t.clientY >= progRect.top && t.clientY <= progRect.bottom) {
+    target = "program";
+  } else if (t.clientX >= trashRect.left && t.clientX <= trashRect.right &&
+             t.clientY >= trashRect.top && t.clientY <= trashRect.bottom) {
+    target = "trash";
+  }
+
+  endDragBlock(target);
+});
+
+/* -------------------------------------------------------
+   RUN / CLEAR / RESET
+------------------------------------------------------- */
+runBtn.addEventListener("click", () => {
+  const blocks = programArea.querySelectorAll(".block");
+  blocks.forEach(b => {
+    const a = b.dataset.action;
+    if (a === "mutate") mutate();
+    else if (a === "add") addBase();
+    else if (a === "mix") mixDNA();
+    else if (a === "reset") resetDNA();
+    else if (a === "swapAT") swapAT();
+    else if (a === "swapCG") swapCG();
+    else if (a === "insert") insertAtDefault();
+    else if (a === "delete") deleteAtDefault();
+    else if (a === "cut") cutSegmentDefault();
+    else if (a === "reverse") reverseSegmentAll();
+    else if (a === "mutateMany") mutateMany();
+  });
+  renderDNA();
+});
+
+clearBtn.addEventListener("click", () => {
+  programArea.innerHTML = "";
+});
+
+resetBtn.addEventListener("click", () => {
+  resetDNA();
+  renderDNA();
+});
+</script>
+</body>
+</html>
